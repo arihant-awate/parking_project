@@ -1,0 +1,246 @@
+import 'package:flutter/material.dart';
+import 'package:parking/home_page.dart'; // Import your HomePage or next screen
+import 'package:parking/home_page_for_seekers.dart';
+import 'package:supabase/supabase.dart'; // Import Supabase client
+import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase client
+import 'user_model.dart'; // Import the UserModel
+
+class MenteeDetailsScreen extends StatefulWidget {
+  @override
+  _MenteeDetailsScreenState createState() => _MenteeDetailsScreenState();
+}
+
+class _MenteeDetailsScreenState extends State<MenteeDetailsScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  final SupabaseClient supabase = Supabase.instance.client; // Initialize Supabase client
+
+  Future<void> _storeMenteeDetails() async {
+    if (_formKey.currentState!.validate()) {
+      final firstName = _firstNameController.text.trim();
+      final lastName = _lastNameController.text.trim();
+      final username = _usernameController.text.trim();
+      final password = _passwordController.text.trim();
+
+      // Insert new mentee details with is_owner set to false (as they are a seeker)
+      final response = await supabase.from('parking_users').insert({
+        'first_name': firstName,
+        'last_name': lastName,
+        'username': username,
+        'password': password, // Hash the password in a real app
+        'is_owner': false, // Set the user as a parking seeker
+      });
+
+      if (response == null) {
+        // Store the user details in the UserModel
+        UserModel.setUser(
+          UserModel(
+            firstName: firstName,
+            lastName: lastName,
+            username: username,
+            userType: 'seeker', // Set userType as 'seeker'
+          ),
+        );
+
+        UserModel? user = UserModel.currentUser;
+
+        if (user != null) {
+          print('First Name: ${user.firstName}');
+          print('Last Name: ${user.lastName}');
+          print('Username: ${user.username}');
+          print('User Type: ${user.userType}');
+        }
+
+        // Show success message and navigate to the home screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Parking Seeker Account created successfully!')),
+        );
+
+        // Navigate to the next screen after successful account creation
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomePageForSeekers()), // Replace with your next screen
+        );
+      } else {
+        // Show error message if something goes wrong
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${response.error!.message}')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Color(0xFF2ED0C2)),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                LinearProgressIndicator(
+                  value: 0.75, // Adjust progress value
+                  backgroundColor: Colors.grey.shade300,
+                  color: Color(0xFF2ED0C2), // Progress bar color
+                  minHeight: 4,
+                ),
+                SizedBox(height: 20),
+                Text(
+                  "Create a Parking Seeker Account",
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2ED0C2), // Title color
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 8),
+                Text(
+                  "Please complete your profile. Your data will remain private.",
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 16,
+                    fontWeight: FontWeight.normal,
+                    color: Colors.grey,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 40),
+                _buildTextField(
+                  label: "First Name",
+                  controller: _firstNameController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your first name';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 20),
+                _buildTextField(
+                  label: "Last Name",
+                  controller: _lastNameController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your last name';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 20),
+                _buildTextField(
+                  label: "Username",
+                  controller: _usernameController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a username';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 20),
+                _buildTextField(
+                  label: "Password",
+                  controller: _passwordController,
+                  isPassword: true,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a password';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 40),
+                ElevatedButton(
+                  onPressed: _storeMenteeDetails, // Call the UI method here
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF2ED0C2), // Button color
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    'Continue',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white, // Text color
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required String label,
+    required TextEditingController controller,
+    bool isPassword = false,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          obscureText: isPassword,
+          validator: validator,
+          decoration: InputDecoration(
+            contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Color(0xFF2ED0C2)), // Border color
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Color(0xFF2ED0C2)), // Border color
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Color(0xFF2ED0C2)), // Border color
+            ),
+          ),
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 16,
+            color: Colors.black,
+          ),
+        ),
+      ],
+    );
+  }
+}
